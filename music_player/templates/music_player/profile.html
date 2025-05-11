@@ -1,0 +1,65 @@
+{% extends "music_player/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="player-container glass-card">
+                <div class="text-center mb-4">
+                    <img src="{% if user.profile.image %}{{ user.profile.image.url }}{% else %}{% static 'music_player/images/default-profile.png' %}{% endif %}" 
+                         class="rounded-circle mb-3" width="150" height="150" alt="Profile picture">
+                    <h2>{{ user.username }}</h2>
+                    <p class="text-muted">{{ user.email }}</p>
+                </div>
+
+                <div class="glass-card p-4 mb-4">
+                    <h4 class="text-accent mb-3"><i class="fas fa-user-cog me-2"></i>Account Information</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Username:</strong> {{ user.username }}</p>
+                            <p><strong>Email:</strong> {{ user.email }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Joined:</strong> {{ user.date_joined|date:"F d, Y" }}</p>
+                            <p><strong>Last Login:</strong> {{ user.last_login|date:"F d, Y H:i" }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card p-4">
+                    <h4 class="text-accent mb-3"><i class="fas fa-music me-2"></i>Your Music Stats</h4>
+                    <div class="row text-center">
+                        <div class="col-md-4 mb-3">
+                            <div class="glass-card p-3">
+                                <h5 class="text-accent">Uploads</h5>
+                                <h3>42</h3>
+                                <small class="text-muted">Songs uploaded</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="glass-card p-3">
+                                <h5 class="text-accent">Playlists</h5>
+                                <h3>5</h3>
+                                <small class="text-muted">Created playlists</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="glass-card p-3">
+                                <h5 class="text-accent">Favorites</h5>
+                                <h3>18</h3>
+                                <small class="text-muted">Favorite tracks</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 text-center">
+                    <a href="#" class="btn btn-accent me-2"><i class="fas fa-edit me-1"></i> Edit Profile</a>
+                    <a href="#" class="btn btn-outline-light"><i class="fas fa-key me-1"></i> Change Password</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

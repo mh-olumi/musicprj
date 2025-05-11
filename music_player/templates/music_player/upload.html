@@ -1,0 +1,352 @@
+{% extends 'music_player/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="upload-container glass-card p-4 rounded-4 my-4">
+        <!-- Progress Steps -->
+        <div class="upload-steps d-flex justify-content-center mb-5">
+            <div class="step active text-center mx-3">
+                <div class="step-number rounded-circle bg-accent text-white d-inline-flex align-items-center justify-content-center mb-2" 
+                     style="width: 36px; height: 36px; transition: all 0.3s ease;">
+                    1
+                </div>
+                <div class="step-label small text-white">Upload</div>
+            </div>
+            <div class="step text-center mx-3">
+                <div class="step-number rounded-circle bg-secondary text-white d-inline-flex align-items-center justify-content-center mb-2" 
+                     style="width: 36px; height: 36px; transition: all 0.3s ease;">
+                    2
+                </div>
+                <div class="step-label small text-muted">Details</div>
+            </div>
+            <div class="step text-center mx-3">
+                <div class="step-number rounded-circle bg-secondary text-white d-inline-flex align-items-center justify-content-center mb-2" 
+                     style="width: 36px; height: 36px; transition: all 0.3s ease;">
+                    3
+                </div>
+                <div class="step-label small text-muted">Confirm</div>
+            </div>
+        </div>
+
+        <h2 class="text-center mb-4 text-white">
+            <i class="fas fa-cloud-upload-alt text-accent me-2"></i> Upload Music
+        </h2>
+        <p class="text-center text-muted mb-4">Share your music with the world</p>
+
+        <!-- Upload Form -->
+        <form method="post" enctype="multipart/form-data" class="upload-form">
+            {% csrf_token %}
+            
+            <!-- Drag & Drop Zone -->
+            <div class="upload-dropzone border-2 border-dashed rounded-4 p-5 text-center mb-4" 
+                 id="dropzone" 
+                 style="border-color: rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.03); transition: all 0.3s ease;">
+                <i class="fas fa-cloud-upload-alt text-accent mb-3" style="font-size: 2.5rem; transition: all 0.3s ease;"></i>
+                <h4 class="mb-2 text-white">Drag & Drop Files Here</h4>
+                <p class="text-muted mb-3">or click to browse</p>
+                <button type="button" class="btn btn-accent" id="browse-btn">
+                    <i class="fas fa-folder-open me-2"></i> Select Files
+                </button>
+                <input type="file" name="audio_file" id="audio_file" class="d-none" accept="audio/*">
+                <input type="file" name="cover_image" id="cover_image" class="d-none" accept="image/*">
+            </div>
+
+            <!-- File Previews -->
+            <div class="upload-previews row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="file-preview glass-card rounded-4 p-4" id="audio-preview" style="display: none; animation: fadeIn 0.5s ease;">
+                        <h5 class="d-flex align-items-center text-white">
+                            <i class="fas fa-music text-accent me-2"></i> Audio File
+                        </h5>
+                        <p class="text-muted small mb-2" id="audio-file-info">No file selected</p>
+                        <div class="waveform mt-3" id="waveform" style="height: 80px;"></div>
+                        <button class="btn btn-sm btn-outline-accent mt-3" id="play-preview-btn">
+                            <i class="fas fa-play me-1"></i> Preview
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="file-preview glass-card rounded-4 p-4" id="cover-preview" style="display: none; animation: fadeIn 0.5s ease;">
+                        <h5 class="d-flex align-items-center text-white">
+                            <i class="fas fa-image text-accent me-2"></i> Cover Image
+                        </h5>
+                        <p class="text-muted small mb-2" id="cover-file-info">No file selected</p>
+                        <img src="{% static 'music_player/images/default-cover.png' %}" 
+                             alt="Cover Preview" id="cover-image-preview" 
+                             class="img-fluid rounded-3 mt-2" style="max-height: 150px; object-fit: cover;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Fields -->
+            <div class="form-fields mb-4">
+                {% for field in form %}
+                    {% if field.name != 'audio_file' and field.name != 'cover_image' %}
+                    <div class="mb-3">
+                        <label for="{{ field.id_for_label }}" class="form-label text-white">
+                            {{ field.label }}
+                            {% if field.field.required %}<span class="text-accent">*</span>{% endif %}
+                        </label>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <div class="form-text text-muted">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <div class="text-accent small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions d-flex justify-content-end gap-3 pt-4 border-top border-secondary">
+                <button type="button" class="btn btn-outline-secondary" id="cancel-btn">
+                    <i class="fas fa-times me-2"></i> Cancel
+                </button>
+                <button type="submit" class="btn btn-accent" id="submit-btn">
+                    <i class="fas fa-upload me-2"></i> Upload
+                    <span class="spinner-border spinner-border-sm d-none" id="submit-spinner"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Audio Preview Modal -->
+<div class="modal fade" id="audioPlayerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card" style="border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white">Audio Preview</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="audio-player">
+                    <audio controls id="audio-preview-player" class="w-100"></audio>
+                    <div class="audio-info mt-3 text-white">
+                        <div class="audio-details">
+                            <div><strong>File:</strong> <span id="audio-file-name" class="text-muted"></span></div>
+                            <div><strong>Duration:</strong> <span id="audio-duration" class="text-muted"></span></div>
+                            <div><strong>Size:</strong> <span id="audio-file-size" class="text-muted"></span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .upload-dropzone:hover {
+        border-color: var(--accent-color) !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+    
+    .upload-dropzone:hover i {
+        transform: translateY(-5px);
+    }
+    
+    .step:hover .step-number {
+        transform: scale(1.1);
+    }
+    
+    .step.active .step-number {
+        box-shadow: 0 0 0 4px rgba(29, 185, 84, 0.3);
+    }
+    
+    #waveform wave {
+        cursor: pointer !important;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/wavesurfer.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Wavesurfer with modern styling
+    const wavesurfer = WaveSurfer.create({
+        container: '#waveform',
+        waveColor: 'rgba(255, 255, 255, 0.2)',
+        progressColor: 'var(--accent-color)',
+        cursorColor: 'var(--accent-color)',
+        cursorWidth: 2,
+        barWidth: 2,
+        barRadius: 3,
+        barGap: 2,
+        height: 80,
+        responsive: true
+    });
+
+    // DOM Elements
+    const dropzone = document.getElementById('dropzone');
+    const audioInput = document.getElementById('audio_file');
+    const coverInput = document.getElementById('cover_image');
+    const browseBtn = document.getElementById('browse-btn');
+    const audioPreview = document.getElementById('audio-preview');
+    const coverPreview = document.getElementById('cover-preview');
+    const audioFileInfo = document.getElementById('audio-file-info');
+    const coverFileInfo = document.getElementById('cover-file-info');
+    const coverImage = document.getElementById('cover-image-preview');
+    const form = document.querySelector('.upload-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const modal = new bootstrap.Modal(document.getElementById('audioPlayerModal'));
+    const audioPlayer = document.getElementById('audio-preview-player');
+    const playPreviewBtn = document.getElementById('play-preview-btn');
+    
+    // Drag and Drop with animations
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+        dropzone.addEventListener(event, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(event => {
+        dropzone.addEventListener(event, () => {
+            dropzone.style.borderColor = 'var(--accent-color)';
+            dropzone.style.background = 'rgba(29, 185, 84, 0.05)';
+            dropzone.querySelector('i').style.transform = 'scale(1.2) translateY(-5px)';
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(event => {
+        dropzone.addEventListener(event, () => {
+            dropzone.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            dropzone.style.background = 'rgba(255, 255, 255, 0.03)';
+            dropzone.querySelector('i').style.transform = '';
+        });
+    });
+
+    dropzone.addEventListener('drop', handleDrop);
+    browseBtn.addEventListener('click', () => audioInput.click());
+    playPreviewBtn.addEventListener('click', () => {
+        if (audioPlayer.src) modal.show();
+    });
+
+    function handleDrop(e) {
+        const files = e.dataTransfer.files;
+        const audioFile = Array.from(files).find(f => f.type.startsWith('audio/'));
+        const imageFile = Array.from(files).find(f => f.type.startsWith('image/'));
+        
+        if (audioFile) handleAudioFile(audioFile);
+        if (imageFile) handleCoverFile(imageFile);
+    }
+
+    // Handle file selection
+    audioInput.addEventListener('change', () => {
+        if (audioInput.files[0]) handleAudioFile(audioInput.files[0]);
+    });
+
+    coverInput.addEventListener('change', () => {
+        if (coverInput.files[0]) handleCoverFile(coverInput.files[0]);
+    });
+
+    function handleAudioFile(file) {
+        audioFileInfo.textContent = `${file.name} (${formatSize(file.size)})`;
+        const url = URL.createObjectURL(file);
+        
+        wavesurfer.load(url);
+        audioPlayer.src = url;
+        
+        // Get duration
+        const tempAudio = new Audio(url);
+        tempAudio.addEventListener('loadedmetadata', function() {
+            document.getElementById('audio-duration').textContent = 
+                formatTime(this.duration);
+            tempAudio.remove(); // Clean up
+        });
+        
+        document.getElementById('audio-file-name').textContent = file.name;
+        document.getElementById('audio-file-size').textContent = formatSize(file.size);
+        audioPreview.style.display = 'block';
+        
+        // Pulse animation for the preview button
+        playPreviewBtn.style.animation = 'pulse 2s infinite';
+    }
+
+    function handleCoverFile(file) {
+        coverFileInfo.textContent = `${file.name} (${formatSize(file.size)})`;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            coverImage.src = e.target.result;
+            coverImage.style.opacity = '0';
+            setTimeout(() => {
+                coverImage.style.transition = 'opacity 0.5s ease';
+                coverImage.style.opacity = '1';
+            }, 10);
+        };
+        reader.readAsDataURL(file);
+        coverPreview.style.display = 'block';
+    }
+
+    // Format helpers
+    function formatSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        if (!audioInput.files[0]) {
+            e.preventDefault();
+            // Modern alert replacement
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger position-fixed top-20 start-50 translate-middle-x';
+            alertDiv.style.zIndex = '1060';
+            alertDiv.style.animation = 'fadeIn 0.3s ease';
+            alertDiv.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <div>Please select an audio file</div>
+                </div>
+            `;
+            document.body.appendChild(alertDiv);
+            setTimeout(() => {
+                alertDiv.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => alertDiv.remove(), 300);
+            }, 3000);
+            return;
+        }
+        
+        submitBtn.disabled = true;
+        document.getElementById('submit-spinner').classList.remove('d-none');
+        submitBtn.querySelector('i').classList.add('d-none');
+    });
+
+    // Cancel button
+    document.getElementById('cancel-btn').addEventListener('click', function() {
+        if (confirm('Cancel upload?')) {
+            window.location.href = "{% url 'music_player:index' %}";
+        }
+    });
+    
+    // Waveform click to play/pause
+    wavesurfer.on('ready', function() {
+        document.getElementById('waveform').addEventListener('click', function() {
+            wavesurfer.playPause();
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,675 @@
+{% extends 'music_player/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="player-container">
+    <!-- Header with search and upload -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+        <h2 class="mb-3 mb-md-0">
+            <i class="fas fa-music me-2"></i>Music Player
+            <small class="text-muted fs-6">{% now "F Y" %}</small>
+        </h2>
+        <div class="d-flex">
+            <div class="input-group me-3" style="max-width: 250px;">
+                <span class="input-group-text bg-dark border-dark">
+                    <i class="fas fa-search text-white"></i>
+                </span>
+                <input type="text" id="search-songs" class="form-control bg-dark text-white border-dark" 
+                       placeholder="Search songs..." aria-label="Search songs">
+            </div>
+            {% if user.is_authenticated %}
+                <a href="{% url 'music_player:upload' %}" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> Upload
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Player Section -->
+    <div class="player-card mb-4 p-4 rounded-4 bg-dark text-white">
+        <div class="row align-items-center">
+            <!-- Album Art Column -->
+            <div class="col-md-3 text-center mb-3 mb-md-0">
+                <div id="album-art-container" class="mx-auto">
+                    <div id="vinyl-record" class="position-relative">
+                        <div class="vinyl"></div>
+                        <img id="album-art" src="{% static 'music_player/images/default_cover.jpg' %}" 
+                             alt="Album Art" class="position-absolute top-50 start-50 translate-middle">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Player Controls Column -->
+            <div class="col-md-9">
+                <div class="player-controls">
+                    <!-- Song Info -->
+                    <div class="mb-3">
+                        <h3 id="now-playing-title" class="mb-0">No song selected</h3>
+                        <p id="now-playing-artist" class="text-muted mb-2">Select a song to play</p>
+                        <div class="d-flex align-items-center">
+                            <span id="current-time" class="me-2">0:00</span>
+                            <input type="range" id="progress-bar" class="w-100 mx-2" value="0">
+                            <span id="duration" class="ms-2">0:00</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Main Controls -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <button id="shuffle-btn" class="btn btn-sm btn-outline-light">
+                            <i class="fas fa-random"></i>
+                        </button>
+                        
+                        <div class="d-flex align-items-center">
+                            <button id="prev-btn" class="btn btn-outline-light mx-2 btn-circle">
+                                <i class="fas fa-step-backward"></i>
+                            </button>
+                            <button id="play-btn" class="btn btn-primary mx-2 btn-circle-lg">
+                                <i class="fas fa-play"></i>
+                            </button>
+                            <button id="next-btn" class="btn btn-outline-light mx-2 btn-circle">
+                                <i class="fas fa-step-forward"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="d-flex align-items-center">
+                            <button id="repeat-btn" class="btn btn-sm btn-outline-light me-2">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                            <div class="volume-control">
+                                <i class="fas fa-volume-up me-2"></i>
+                                <input type="range" id="volume-bar" min="0" max="1" step="0.01" value="0.7">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Features -->
+                    <div class="d-flex justify-content-between">
+                        <button id="favorite-btn" class="btn btn-sm btn-outline-danger">
+                            <i class="far fa-heart"></i> Like
+                        </button>
+                        <div class="d-flex">
+                            <button id="playlist-add-btn" class="btn btn-sm btn-outline-light me-2">
+                                <i class="fas fa-plus"></i> Add to Playlist
+                            </button>
+                            <button id="download-btn" class="btn btn-sm btn-outline-light">
+                                <i class="fas fa-download"></i> Download
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Song List -->
+    <div class="song-list">
+        {% for song in songs %}
+            <div class="song-item p-3 mb-2 border rounded d-flex justify-content-between align-items-center"
+                 data-song-id="{{ song.id }}"
+                 data-audio-url="{{ song.audio_file.url }}"
+                 data-title="{{ song.title }}"
+                 data-artist="{{ song.artist }}"
+                 data-cover-url="{% if song.cover_image %}{{ song.cover_image.url }}{% else %}{% static 'music_player/images/default_cover.jpg' %}{% endif %}">
+                <div class="d-flex align-items-center">
+                    {% if song.cover_image %}
+                        <img src="{{ song.cover_image.url }}" class="cover-image me-3 rounded" alt="{{ song.title }}">
+                    {% else %}
+                        <div class="cover-image me-3 bg-dark bg-gradient d-flex align-items-center justify-content-center rounded">
+                            <i class="fas fa-music text-white"></i>
+                        </div>
+                    {% endif %}
+                    <div>
+                        <h6 class="mb-0">{{ song.title }}</h6>
+                        <small class="text-muted">{{ song.artist }}</small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-secondary me-2">{{ song.genre|default:"Unknown" }}</span>
+                    <span class="text-muted me-3">{{ song.duration|default:"--:--" }}</span>
+                    {% if user == song.uploaded_by or user.is_superuser %}
+                        <a href="{% url 'music_player:delete' song.id %}" class="btn btn-sm btn-danger ms-2">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% empty %}
+            <div class="text-center py-4">
+                <p class="text-muted">No songs available. {% if user.is_authenticated %}Upload some!{% else %}Login to upload.{% endif %}</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<audio id="audio-player"></audio>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Player elements
+    const audioPlayer = document.getElementById('audio-player');
+    const playBtn = document.getElementById('play-btn');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const shuffleBtn = document.getElementById('shuffle-btn');
+    const repeatBtn = document.getElementById('repeat-btn');
+    const favoriteBtn = document.getElementById('favorite-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const volumeBar = document.getElementById('volume-bar');
+    const currentTimeEl = document.getElementById('current-time');
+    const durationEl = document.getElementById('duration');
+    const nowPlayingTitle = document.getElementById('now-playing-title');
+    const nowPlayingArtist = document.getElementById('now-playing-artist');
+    const albumArt = document.getElementById('album-art');
+    const vinylRecord = document.getElementById('vinyl-record');
+    const searchInput = document.getElementById('search-songs');
+    
+    // Player state
+    let songs = [];
+    let currentSongIndex = -1;
+    let isShuffled = false;
+    let isRepeating = false;
+    let originalPlaylist = [];
+    let isPlaying = false;
+    
+    // Initialize player
+    function initPlayer() {
+        // Get all song items and convert them to an array of song objects
+        const songItems = document.querySelectorAll('.song-item');
+        songItems.forEach((item, index) => {
+            songs.push({
+                id: item.dataset.songId,
+                url: item.dataset.audioUrl,
+                title: item.dataset.title,
+                artist: item.dataset.artist,
+                coverUrl: item.dataset.coverUrl,
+                element: item
+            });
+            
+            // Add click event to each song item
+            item.addEventListener('click', function(e) {
+                // Don't play if clicking on delete button
+                if (!e.target.closest('.btn-danger')) {
+                    playSong(index);
+                }
+            });
+        });
+        
+        originalPlaylist = [...songs];
+        
+        // Set initial volume
+        audioPlayer.volume = volumeBar.value;
+        
+        // Load saved preferences
+        loadPreferences();
+    }
+    
+    // Play a specific song
+    function playSong(index) {
+        if (index < 0 || index >= songs.length) return;
+        
+        // Update UI for the selected song
+        if (currentSongIndex >= 0) {
+            songs[currentSongIndex].element.classList.remove('active-song');
+        }
+        currentSongIndex = index;
+        songs[currentSongIndex].element.classList.add('active-song');
+        
+        // Scroll to the song in the list
+        songs[currentSongIndex].element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+        
+        // Set the audio source and play
+        audioPlayer.src = songs[currentSongIndex].url;
+        audioPlayer.play()
+            .then(() => {
+                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                isPlaying = true;
+                vinylRecord.style.animationPlayState = 'running';
+            })
+            .catch(error => {
+                console.error("Playback failed:", error);
+            });
+        
+        // Update now playing info
+        nowPlayingTitle.textContent = songs[currentSongIndex].title;
+        nowPlayingArtist.textContent = songs[currentSongIndex].artist;
+        
+        // Update album art
+        albumArt.src = songs[currentSongIndex].coverUrl;
+        
+        // Save to recently played
+        saveToRecentlyPlayed(songs[currentSongIndex]);
+        
+        // Update favorite button state
+        updateFavoriteButton();
+    }
+    
+    // Play/pause toggle
+    function togglePlayPause() {
+        if (currentSongIndex === -1 && songs.length > 0) {
+            playSong(0);
+            return;
+        }
+        
+        if (audioPlayer.paused) {
+            audioPlayer.play()
+                .then(() => {
+                    playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                    isPlaying = true;
+                    vinylRecord.style.animationPlayState = 'running';
+                });
+        } else {
+            audioPlayer.pause();
+            playBtn.innerHTML = '<i class="fas fa-play"></i>';
+            isPlaying = false;
+            vinylRecord.style.animationPlayState = 'paused';
+        }
+    }
+    
+    // Previous song
+    function prevSong() {
+        if (songs.length === 0) return;
+        
+        let newIndex = currentSongIndex - 1;
+        if (newIndex < 0) newIndex = songs.length - 1;
+        playSong(newIndex);
+    }
+    
+    // Next song
+    function nextSong() {
+        if (songs.length === 0) return;
+        
+        let newIndex = currentSongIndex + 1;
+        if (newIndex >= songs.length) newIndex = 0;
+        playSong(newIndex);
+    }
+    
+    // Toggle shuffle
+    function toggleShuffle() {
+        isShuffled = !isShuffled;
+        
+        if (isShuffled) {
+            shuffleBtn.classList.add('active');
+            shufflePlaylist();
+        } else {
+            shuffleBtn.classList.remove('active');
+            restoreOriginalPlaylist();
+        }
+    }
+    
+    // Shuffle the playlist
+    function shufflePlaylist() {
+        const currentSongId = currentSongIndex >= 0 ? songs[currentSongIndex].id : null;
+        
+        // Fisher-Yates shuffle algorithm
+        for (let i = songs.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [songs[i], songs[j]] = [songs[j], songs[i]];
+        }
+        
+        // Update current song index
+        if (currentSongId) {
+            currentSongIndex = songs.findIndex(song => song.id === currentSongId);
+        }
+    }
+    
+    // Restore original playlist order
+    function restoreOriginalPlaylist() {
+        const currentSongId = currentSongIndex >= 0 ? songs[currentSongIndex].id : null;
+        songs = [...originalPlaylist];
+        
+        // Update current song index
+        if (currentSongId) {
+            currentSongIndex = songs.findIndex(song => song.id === currentSongId);
+        }
+    }
+    
+    // Toggle repeat
+    function toggleRepeat() {
+        isRepeating = !isRepeating;
+        repeatBtn.classList.toggle('active', isRepeating);
+    }
+    
+    // Toggle favorite
+    function toggleFavorite() {
+        favoriteBtn.classList.toggle('active');
+        favoriteBtn.innerHTML = favoriteBtn.classList.contains('active') ? 
+            '<i class="fas fa-heart"></i> Liked' : '<i class="far fa-heart"></i> Like';
+        
+        // Save to favorites
+        if (currentSongIndex >= 0) {
+            const songId = songs[currentSongIndex].id;
+            let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+            
+            if (favoriteBtn.classList.contains('active')) {
+                if (!favorites.includes(songId)) {
+                    favorites.push(songId);
+                }
+            } else {
+                favorites = favorites.filter(id => id !== songId);
+            }
+            
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+        }
+    }
+    
+    // Update favorite button state
+    function updateFavoriteButton() {
+        if (currentSongIndex >= 0) {
+            const songId = songs[currentSongIndex].id;
+            const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+            
+            if (favorites.includes(songId)) {
+                favoriteBtn.classList.add('active');
+                favoriteBtn.innerHTML = '<i class="fas fa-heart"></i> Liked';
+            } else {
+                favoriteBtn.classList.remove('active');
+                favoriteBtn.innerHTML = '<i class="far fa-heart"></i> Like';
+            }
+            
+            favoriteBtn.style.display = 'inline-block';
+        } else {
+            favoriteBtn.style.display = 'none';
+        }
+    }
+    
+    // Save to recently played
+    function saveToRecentlyPlayed(song) {
+        let recent = JSON.parse(localStorage.getItem('recentlyPlayed')) || [];
+        
+        // Remove if already exists
+        recent = recent.filter(item => item.id !== song.id);
+        
+        // Add to beginning
+        recent.unshift({
+            id: song.id,
+            title: song.title,
+            artist: song.artist,
+            coverUrl: song.coverUrl,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Keep only last 10
+        if (recent.length > 10) {
+            recent = recent.slice(0, 10);
+        }
+        
+        localStorage.setItem('recentlyPlayed', JSON.stringify(recent));
+    }
+    
+    // Search songs
+    function searchSongs(query) {
+        const lowerQuery = query.toLowerCase();
+        const songItems = document.querySelectorAll('.song-item');
+        
+        songItems.forEach(item => {
+            const title = item.dataset.title.toLowerCase();
+            const artist = item.dataset.artist.toLowerCase();
+            
+            if (title.includes(lowerQuery) || artist.includes(lowerQuery)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+    
+    // Load user preferences
+    function loadPreferences() {
+        // Volume
+        const savedVolume = localStorage.getItem('volume');
+        if (savedVolume) {
+            audioPlayer.volume = parseFloat(savedVolume);
+            volumeBar.value = savedVolume;
+        }
+        
+        // Shuffle
+        const savedShuffle = localStorage.getItem('shuffle');
+        if (savedShuffle === 'true') {
+            toggleShuffle();
+        }
+        
+        // Repeat
+        const savedRepeat = localStorage.getItem('repeat');
+        if (savedRepeat === 'true') {
+            toggleRepeat();
+        }
+    }
+    
+    // Save user preferences
+    function savePreferences() {
+        localStorage.setItem('volume', audioPlayer.volume);
+        localStorage.setItem('shuffle', isShuffled);
+        localStorage.setItem('repeat', isRepeating);
+    }
+    
+    // Format time (seconds to MM:SS)
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+    
+    // Event Listeners
+    playBtn.addEventListener('click', togglePlayPause);
+    prevBtn.addEventListener('click', prevSong);
+    nextBtn.addEventListener('click', nextSong);
+    shuffleBtn.addEventListener('click', toggleShuffle);
+    repeatBtn.addEventListener('click', toggleRepeat);
+    favoriteBtn.addEventListener('click', toggleFavorite);
+    
+    audioPlayer.addEventListener('timeupdate', function() {
+        const currentTime = audioPlayer.currentTime;
+        const duration = audioPlayer.duration;
+        
+        if (!isNaN(duration)) {
+            progressBar.value = (currentTime / duration) * 100;
+            currentTimeEl.textContent = formatTime(currentTime);
+            durationEl.textContent = formatTime(duration);
+        }
+    });
+    
+    progressBar.addEventListener('input', function() {
+        const seekTime = (progressBar.value / 100) * audioPlayer.duration;
+        audioPlayer.currentTime = seekTime;
+    });
+    
+    volumeBar.addEventListener('input', function() {
+        audioPlayer.volume = volumeBar.value;
+        savePreferences();
+    });
+    
+    audioPlayer.addEventListener('ended', function() {
+        if (isRepeating) {
+            audioPlayer.currentTime = 0;
+            audioPlayer.play();
+        } else {
+            nextSong();
+        }
+    });
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.code === 'Space') {
+            e.preventDefault();
+            togglePlayPause();
+        } else if (e.code === 'ArrowRight' && e.ctrlKey) {
+            nextSong();
+        } else if (e.code === 'ArrowLeft' && e.ctrlKey) {
+            prevSong();
+        } else if (e.code === 'ArrowUp') {
+            e.preventDefault();
+            audioPlayer.volume = Math.min(audioPlayer.volume + 0.1, 1);
+            volumeBar.value = audioPlayer.volume;
+            savePreferences();
+        } else if (e.code === 'ArrowDown') {
+            e.preventDefault();
+            audioPlayer.volume = Math.max(audioPlayer.volume - 0.1, 0);
+            volumeBar.value = audioPlayer.volume;
+            savePreferences();
+        }
+    });
+    
+    searchInput.addEventListener('input', function() {
+        searchSongs(this.value);
+    });
+    
+    window.addEventListener('beforeunload', savePreferences);
+    
+    // Initialize the player
+    initPlayer();
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+/* Custom CSS for the enhanced music player */
+.player-card {
+    background: linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border: none;
+}
+
+.btn-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-circle-lg {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.song-item {
+    transition: all 0.3s ease;
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.song-item:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    transform: translateX(5px);
+}
+
+.song-item.active-song {
+    background-color: rgba(41, 98, 255, 0.2);
+    border-left: 3px solid #2962ff !important;
+}
+
+#album-art-container {
+    width: 200px;
+    height: 200px;
+    position: relative;
+}
+
+#album-art {
+    width: 120px;
+    height: 120px;
+    border-radius: 5px;
+    object-fit: cover;
+    z-index: 2;
+}
+
+.vinyl {
+    width: 200px;
+    height: 200px;
+    background: linear-gradient(135deg, #111 0%, #333 50%, #111 100%);
+    border-radius: 50%;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+}
+
+.vinyl::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px;
+    height: 30px;
+    background-color: #fff;
+    border-radius: 50%;
+    z-index: 1;
+}
+
+#vinyl-record {
+    width: 200px;
+    height: 200px;
+    animation: spin 4s linear infinite;
+    animation-play-state: paused;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+input[type="range"] {
+    -webkit-appearance: none;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 15px;
+    height: 15px;
+    background: #2962ff;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.volume-control {
+    display: flex;
+    align-items: center;
+    width: 100px;
+}
+
+.btn.active {
+    background-color: #2962ff;
+    border-color: #2962ff;
+}
+
+#favorite-btn.active {
+    background-color: #ff2962;
+    border-color: #ff2962;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .player-card {
+        padding: 20px;
+    }
+    
+    #album-art-container {
+        width: 150px;
+        height: 150px;
+        margin-bottom: 20px;
+    }
+    
+    .vinyl {
+        width: 150px;
+        height: 150px;
+    }
+    
+    #album-art {
+        width: 90px;
+        height: 90px;
+    }
+}
+</style>
+{% endblock %}
