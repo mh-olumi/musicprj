@@ -37,11 +37,13 @@ A full-featured music streaming web app built using **Python Django**. This proj
 
 ## ⚙️ Installation
 
-### 1. Clone the repo
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/musicplayer.git
-cd musicplayer
+mkdir music_player
+cd music_player
+git clone https://github.com/mh-olumi/musicprj.git
+env/Scripts/activate.bat
 pip install requiremnts.txt
-create virtual enviorment (optional)
-python manage.python runsever
+python manage.py makemigrations
+python manage.py migrate
+python manage.py runsever
